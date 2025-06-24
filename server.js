@@ -94,6 +94,12 @@ app.get('/', (req, res) => {
   res.sendFile('index.html', { root: 'public' });
 });
 
+// Health check endpoint similar to your example
+app.get('/health', (req, res) => {
+  res.setHeader('Content-Type', 'text/plain');
+  res.status(200).send("Hello from your Node.js backend! I'm alive!\n");
+});
+
 app.post('/api/analyze-url', async (req, res) => {
   const { url: initialUrl } = req.body;
   
