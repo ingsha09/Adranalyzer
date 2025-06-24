@@ -200,16 +200,16 @@ app.post('/api/analyze-url', async (req, res) => {
       });
 
     // Enhanced HTTPS check
-    runCheck('Secure Connection (HTTPS/SSL)', CAT_AUTO, 15, () => {
+    runCheck('Secure Connection (HTTPS/SSL)', CAT_AUTO, 20, () => {
       if (finalResolvedUrl.startsWith('https://')) {
         return { status: 'pass', message: 'Site uses HTTPS encryption.' };
       } else {
-        return { status: 'fail', message: 'Site does not use HTTPS. This is critical for AdSense approval.' };
+        return { status: 'fail', message: 'Site does not use HTTPS. This is CRITICAL for AdSense approval.' };
       }
     });
 
     // HTTPS redirect check
-    runCheck('HTTPS Redirect Check', CAT_AUTO, 10, () => {
+    runCheck('HTTPS Redirect Check', CAT_AUTO, 15, () => {
       const initial = new URL(initialUrl.startsWith('http') ? initialUrl : `https://${initialUrl}`);
       const final = new URL(finalResolvedUrl);
       if (initial.protocol === 'http:' && final.protocol === 'https:' && initial.hostname === final.hostname) {
@@ -313,15 +313,15 @@ app.post('/api/analyze-url', async (req, res) => {
     });
 
     // Enhanced privacy policy check
-    runCheck('Privacy Policy Page', CAT_STRUCT_ACC, 15, () => {
+    runCheck('Privacy Policy Page', CAT_STRUCT_ACC, 25, () => {
       const privacyLink = findLink(['privacy', 'policy', 'privacy-policy']);
       if (privacyLink) {
         const href = privacyLink.href.toLowerCase();
         if (href.includes('privacy') || href.includes('policy')) {
-          return { status: 'pass', message: 'Privacy Policy link found - required for AdSense.' };
+          return { status: 'pass', message: 'Privacy Policy link found - REQUIRED for AdSense.' };
         }
       }
-      return { status: 'fail', message: 'Privacy Policy page missing - REQUIRED for AdSense approval.' };
+      return { status: 'fail', message: 'Privacy Policy page missing - CRITICAL REQUIREMENT for AdSense approval.' };
     });
 
     // Terms of Service check
@@ -361,16 +361,18 @@ app.post('/api/analyze-url', async (req, res) => {
     });
 
     // Content quality indicators
-    runCheck('Content Volume', CAT_CONTENT, 8, () => {
+    runCheck('Content Volume', CAT_CONTENT, 20, () => {
       const textContent = doc.body.textContent || '';
       const wordCount = textContent.split(/\s+/).filter(word => word.length > 2).length;
       
-      if (wordCount > 500) {
-        return { status: 'pass', message: `Substantial content detected (~${wordCount} words).` };
-      } else if (wordCount > 200) {
-        return { status: 'warn', message: `Moderate content (~${wordCount} words). Consider adding more quality content.` };
+      if (wordCount > 1500) {
+        return { status: 'pass', message: `Good content volume (~${wordCount} words).` };
+      } else if (wordCount > 800) {
+        return { status: 'warn', message: `Moderate content (~${wordCount} words). AdSense prefers sites with substantial content (1500+ words per page).` };
+      } else if (wordCount > 300) {
+        return { status: 'fail', message: `Low content volume (~${wordCount} words). AdSense requires substantial, valuable content.` };
       }
-      return { status: 'fail', message: `Low content volume (~${wordCount} words). AdSense requires substantial content.` };
+      return { status: 'fail', message: `Insufficient content (~${wordCount} words). AdSense typically rejects sites with minimal content.` };
     });
 
     // Heading structure
@@ -482,23 +484,70 @@ app.post('/api/analyze-url', async (req, res) => {
       message: 'Ensure professional design, easy navigation, fast loading, and good user experience.' 
     });
 
-    const finalScore = Math.min(100, Math.round(score));
+    // Apply strict penalty system
+    let finalScore = Math.round(score);
+    let penalties = [];
+    
+    // Critical failures that severely impact AdSense approval
+    const criticalChecks = checks.filter(check => 
+      check.status === 'fail' && 
+      (check.name.includes('Privacy Policy') || 
+       check.name.includes('HTTPS') || 
+       check.name.includes('Content Volume') ||
+       check.name.includes('robots.txt'))
+    );
+    
+    if (criticalChecks.length > 0) {
+      const penalty = criticalChecks.length * 25;
+      finalScore = Math.max(0, finalScore - penalty);
+      penalties.push(`Critical issues detected: -${penalty} points`);
+    }
+    
+    // Additional penalty for sites with multiple failures
+    const failedChecks = checks.filter(check => check.status === 'fail').length;
+    if (failedChecks > 5) {
+      const penalty = (failedChecks - 5) * 5;
+      finalScore = Math.max(0, finalScore - penalty);
+      penalties.push(`Multiple failures: -${penalty} points`);
+    }
+    
+    // Cap score at 85% if any critical requirements are missing
+    if (criticalChecks.length > 0) {
+      finalScore = Math.min(finalScore, 60);
+    }
+    
+    // Realistic scoring brackets
+    let scoreInterpretation;
+    if (finalScore >= 80) {
+      scoreInterpretation = "Good technical foundation, but AdSense approval depends heavily on content quality, originality, and policy compliance.";
+    } else if (finalScore >= 60) {
+      scoreInterpretation = "Some technical issues need attention. Address critical requirements before applying to AdSense.";
+    } else {
+      scoreInterpretation = "Significant technical issues detected. Your site likely needs substantial improvements before AdSense consideration.";
+    }
     
     res.json({ 
       score: finalScore, 
       checks, 
       finalResolvedUrl,
       analysisTime: Date.now() - (Date.now() - responseTime),
-      recommendations: finalScore < 70 ? [
-        'Focus on fixing critical issues (HTTPS, Privacy Policy, robots.txt)',
-        'Add more quality content with proper structure',
-        'Ensure mobile responsiveness and fast loading',
-        'Complete all required pages (About, Contact, Terms)'
+      penalties,
+      scoreInterpretation,
+      recommendations: finalScore < 60 ? [
+        'Fix ALL critical issues immediately (HTTPS, Privacy Policy, Content Volume)',
+        'Add substantial, original, high-quality content (minimum 1500+ words per page)',
+        'Ensure complete site structure with all required legal pages',
+        'AdSense approval requires months of consistent, valuable content creation'
+      ] : finalScore < 80 ? [
+        'Address remaining technical issues',
+        'Focus heavily on content quality and originality', 
+        'Ensure full compliance with AdSense content policies',
+        'Build substantial site authority before applying'
       ] : [
-        'Your site shows good technical foundation',
-        'Review manual checks carefully',
-        'Consider additional content and social presence',
-        'Monitor site performance regularly'
+        'Technical foundation is decent, but remember:',
+        'AdSense approval is primarily about content quality and originality',
+        'Ensure compliance with all AdSense content policies',
+        'Traffic volume and site authority are also crucial factors'
       ]
     });
 
