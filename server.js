@@ -9,18 +9,28 @@ const PORT = process.env.PORT || 3000;
 const allowedOrigins = [
   'https://aranalyzer.blogspot.com',
   'https://www.aranalyzer.blogspot.com',
-  process.env.REPL_SLUG ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co` : null,
   'http://localhost:8080',
   'http://127.0.0.1:5500'
-].filter(Boolean);
+];
 
 app.use(cors({
   origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error(`CORS policy does not allow access from: ${origin}`), false);
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin) {
+      return callback(null, true);
     }
+
+    // Allow all Replit URLs
+    if (origin.includes('.replit.dev') || origin.includes('.repl.co')) {
+      return callback(null, true);
+    }
+
+    // Check against allowed origins
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    callback(new Error(`CORS policy does not allow access from: ${origin}`), false);
   }
 }));
 
