@@ -32,7 +32,15 @@ async function fetchWithRedirects(url, options = {}, maxRedirects = 5) {
 
   for (let i = 0; i < maxRedirects; i++) {
     try {
-      response = await fetch(finalUrl, { ...options, redirect: 'manual', timeout: 25000 });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 25000);
+      
+      response = await fetch(finalUrl, { 
+        ...options, 
+        redirect: 'manual', 
+        signal: controller.signal 
+      });
+      clearTimeout(timeoutId);
       if (response.status >= 300 && response.status < 400 && response.headers.has('location')) {
         const location = response.headers.get('location');
         finalUrl = new URL(location, finalUrl).href;
@@ -67,11 +75,11 @@ app.post('/api/analyze-url', async (req, res) => {
 
     let htmlResponse;
     try {
-      htmlResponse = await fetchWithRedirects(targetUrl, { timeout: 25000 });
+      htmlResponse = await fetchWithRedirects(targetUrl);
       if (!htmlResponse.ok) {
         if (targetUrl.startsWith('https://')) {
           targetUrl = targetUrl.replace('https://', 'http://');
-          htmlResponse = await fetchWithRedirects(targetUrl, { timeout: 25000 });
+          htmlResponse = await fetchWithRedirects(targetUrl);
         }
       }
       if (!htmlResponse.ok) {
@@ -129,7 +137,10 @@ app.post('/api/analyze-url', async (req, res) => {
     const robotsCheckResult = await (async () => {
       try {
         const origin = new URL(finalResolvedUrl).origin;
-        const robotsRes = await fetch(`${origin}/robots.txt`, { timeout: 5000 });
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        const robotsRes = await fetch(`${origin}/robots.txt`, { signal: controller.signal });
+        clearTimeout(timeoutId);
         if (!robotsRes.ok) {
           return { status: 'warn', message: 'robots.txt not found or inaccessible.' };
         }
@@ -212,6 +223,6 @@ app.post('/api/analyze-url', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`✅ Server is running on http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`✅ Server is running on http://0.0.0.0:${PORT}`);
 });
