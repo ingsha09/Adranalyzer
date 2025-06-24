@@ -484,8 +484,12 @@ app.post('/api/analyze-url', async (req, res) => {
       message: 'Ensure professional design, easy navigation, fast loading, and good user experience.' 
     });
 
-    // Apply strict penalty system
-    let finalScore = Math.round(score);
+    // Calculate total possible weight from automated checks only
+    const automatedChecks = checks.filter(check => check.status !== 'manual');
+    const totalPossibleWeight = automatedChecks.reduce((sum, check) => sum + check.weight, 0);
+    
+    // Calculate percentage score (0-100)
+    let finalScore = totalPossibleWeight > 0 ? Math.round((score / totalPossibleWeight) * 100) : 0;
     let penalties = [];
     
     // Critical failures that severely impact AdSense approval
@@ -498,23 +502,26 @@ app.post('/api/analyze-url', async (req, res) => {
     );
     
     if (criticalChecks.length > 0) {
-      const penalty = criticalChecks.length * 25;
+      const penalty = criticalChecks.length * 15;
       finalScore = Math.max(0, finalScore - penalty);
-      penalties.push(`Critical issues detected: -${penalty} points`);
+      penalties.push(`Critical issues detected: -${penalty}%`);
     }
     
     // Additional penalty for sites with multiple failures
     const failedChecks = checks.filter(check => check.status === 'fail').length;
     if (failedChecks > 5) {
-      const penalty = (failedChecks - 5) * 5;
+      const penalty = (failedChecks - 5) * 3;
       finalScore = Math.max(0, finalScore - penalty);
-      penalties.push(`Multiple failures: -${penalty} points`);
+      penalties.push(`Multiple failures: -${penalty}%`);
     }
     
-    // Cap score at 85% if any critical requirements are missing
+    // Cap score at 65% if any critical requirements are missing
     if (criticalChecks.length > 0) {
-      finalScore = Math.min(finalScore, 60);
+      finalScore = Math.min(finalScore, 65);
     }
+    
+    // Ensure score never exceeds 100
+    finalScore = Math.min(finalScore, 100);
     
     // Realistic scoring brackets
     let scoreInterpretation;
