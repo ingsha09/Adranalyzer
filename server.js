@@ -34,7 +34,7 @@ async function fetchWithRedirects(url, options = {}, maxRedirects = 5) {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 25000);
-      
+
       response = await fetch(finalUrl, { 
         ...options, 
         redirect: 'manual', 
@@ -55,6 +55,12 @@ async function fetchWithRedirects(url, options = {}, maxRedirects = 5) {
   }
   return fetch(finalUrl, options);
 }
+
+app.use(express.static('public'));
+
+app.get('/', (req, res) => {
+  res.sendFile('index.html', { root: 'public' });
+});
 
 app.post('/api/analyze-url', async (req, res) => {
   const { url: initialUrl } = req.body;
