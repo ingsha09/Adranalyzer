@@ -273,9 +273,8 @@
         const scoreSummary = document.getElementById('score-summary');
         const checklistCard = document.getElementById('checklist-card');
 
-        // IMPORTANT: This is YOUR Replit backend API URL.
-        // It should look like: https://YOUR_REPL_NAME.YOUR_USERNAME.repl.co/api/analyze-url
-        const BACKEND_API_URL = 'https://adsense-analyzer-backend.ingshalimbu09.repl.co/api/analyze-url'; 
+        // Backend API URL - uses current domain for API calls
+        const BACKEND_API_URL = `${window.location.origin}/api/analyze-url`; 
         const CIRCLE_CIRCUMFERENCE = 2 * Math.PI * 84;
 
         /**

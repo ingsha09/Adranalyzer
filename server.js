@@ -12,10 +12,10 @@ const PORT = process.env.PORT || 3000;
 const allowedOrigins = [
     'https://aranalyzer.blogspot.com', 
     'https://www.aranalyzer.blogspot.com',
-    'https://4faa2135-49c6-40fe-b2ac-bf93a212f47d-00-11iyxd3vok0w0.sisko.replit.dev', // <--- UPDATE THIS LINE WITH YOUR NEW REPLIT URL!
+    process.env.REPL_SLUG ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co` : null,
     'http://localhost:8080', 
     'http://127.0.0.1:5500' 
-];
+].filter(Boolean);
 
 app.use(cors({
     origin: function (origin, callback) {
