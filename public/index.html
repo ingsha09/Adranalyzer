@@ -189,6 +189,38 @@
         }
         .final-disclaimer strong { color: var(--text-color); }
 
+        /* Recommendations Styling */
+        #recommendations-card {
+            display: none;
+        }
+
+        #recommendations-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        #recommendations-list li {
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        #recommendations-list li:last-child {
+            border-bottom: none;
+        }
+
+        #recommendations-list li::before {
+            content: "\\f0a9"; /* Font Awesome right arrow */
+            font-family: 'Font Awesome 5 Free';
+            font-weight: 900;
+            margin-right: 0.5rem;
+            color: var(--primary-color);
+        }
+        .info-note {
+            font-size: 0.9rem;
+            color: var(--muted-text-color);
+            margin-top: 1rem;
+        }
+
         /* Media Queries for specific breakpoints */
         @media (max-width: 768px) { 
             /* On screens smaller than 768px, force a single column layout */
@@ -228,6 +260,7 @@
             .final-disclaimer { font-size: 0.85rem; }
         }
     </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
 </head>
 <body>
 
@@ -256,7 +289,17 @@
                 </div>
                 <p id="score-summary">This score reflects technical and structural best practices. A high score does NOT guarantee approval.</p>
             </div>
-            <div class="result-card" id="checklist-card"></div>
+            <div class="result-card" id="checklist-card">
+                <!-- Dynamically filled by JavaScript -->
+            </div>
+
+            <div class="result-card" id="recommendations-card" style="display: none;">
+                <h2><i class='bx bx-bulb'></i> Recommendations</h2>
+                <ul id="recommendations-list"></ul>
+                <div class="info-note">
+                    <strong>Note:</strong> This analysis focuses on technical readiness. AdSense approval also depends on content quality, traffic volume, and compliance with Google's policies.
+                </div>
+            </div>
         </div>
     </div>
 
@@ -272,6 +315,8 @@
         const scoreTitle = document.getElementById('score-title');
         const scoreSummary = document.getElementById('score-summary');
         const checklistCard = document.getElementById('checklist-card');
+        const recommendationsCard = document.getElementById('recommendations-card');
+        const recommendationsList = document.getElementById('recommendations-list');
 
         // Backend API URL - uses current domain for API calls
         const BACKEND_API_URL = `${window.location.origin}/api/analyze-url`; 
@@ -299,6 +344,7 @@
             resultsContainer.style.display = 'none';
             errorMessageDiv.textContent = message;
             errorMessageDiv.style.display = 'block';
+            recommendationsCard.style.display = 'none';
         };
 
         /** Hides any currently displayed error message. */
@@ -394,6 +440,16 @@
             checklistCard.innerHTML += `<div class="final-disclaimer"><strong>Important:</strong> A high technical score does not guarantee AdSense approval. Your content's originality, value, and trustworthiness (E-E-A-T) are paramount. Pay close attention to the "Manual Checks" section.</div>`;
         };
 
+        const displayRecommendations = (recommendations) => {
+            recommendationsList.innerHTML = '';
+            recommendations.forEach(recommendation => {
+                const listItem = document.createElement('li');
+                listItem.textContent = recommendation;
+                recommendationsList.appendChild(listItem);
+            });
+            recommendationsCard.style.display = 'block';
+        };
+
         /**
          * Analyzes the given URL by sending a request to the Node.js backend.
          * @param {string} initialUrl - The URL to analyze.
@@ -436,6 +492,28 @@
             }
         };
 
+        const displayResults = (data) => {
+            const { score, checks, finalResolvedUrl, analysisTime, recommendations } = data;
+
+            document.getElementById('results-container').style.display = 'block';
+            updateScoreUI(score);
+            renderChecklist(checks);
+
+            if (recommendations && recommendations.length > 0) {
+                displayRecommendations(recommendations);
+            } else {
+                document.getElementById('recommendations-card').style.display = 'none';
+            }
+
+            if (finalResolvedUrl) {
+                console.log('Final URL after redirects:', finalResolvedUrl);
+            }
+
+            if (analysisTime) {
+                console.log(`Analysis completed in ${analysisTime}ms`);
+            }
+        };
+
         // Event listener for form submission
         analysisForm.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -465,3 +543,4 @@
     </script>
 </body>
 </html>
+```Refactored and enhanced AdSense Readiness Analyzer tool for better accuracy, error handling, and display of recommendations.
