@@ -8,8 +8,8 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 const allowedOrigins = [
-  'https://aranalyzer.blogspot.com',
-  'https://www.aranalyzer.blogspot.com',
+  'https://adranalyzer.blogspot.com',
+  'https://www.adranalyzer.blogspot.com',
   'http://localhost:8080',
   'http://127.0.0.1:5500'
 ];
