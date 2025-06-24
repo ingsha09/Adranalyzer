@@ -1,3 +1,5 @@
-
-// Entry point that starts the server
-require('./server.js');
+import('./server.js').then(() => {
+  // You can add any additional logic here if needed
+}).catch(err => {
+  console.error(err);
+});
