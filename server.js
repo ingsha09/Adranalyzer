@@ -14,7 +14,7 @@ const allowedOrigins = [
   'https://www.adranalyzer.blogspot.com',   // Your Blogger domain (www version)
   'http://localhost:8080',                  // For local development
   'http://127.0.0.1:5500',                  // For local development (e.g., Live Server)
-  'https://adranalyzer.onrender.com'        // Your deployed Render app's domain
+  'https://adranalyzer.onrender.com'        // Your deployed Render app's domain (if it makes internal calls or for testing)
 ];
 
 // Configure CORS middleware
@@ -32,19 +32,21 @@ app.use(cors({
 
     // If the origin is not allowed, reject the request
     callback(new Error(`CORS policy does not allow access from: ${origin}`), false);
-  }
+  },
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE', // Explicitly allow common HTTP methods
+  credentials: true, // Allow cookies to be sent (if your app uses them)
+  optionsSuccessStatus: 204 // Use 204 for preflight success (standard practice)
 }));
 
 // Middleware to parse JSON request bodies
 app.use(express.json());
 
-// Serve static files from the 'public' directory (if you have an index.html or other assets there)
-app.use(express.static('public'));
-
-// Basic route to serve index.html for the root path
-app.get('/', (req, res) => {
-  res.sendFile('index.html', { root: 'public' });
-});
+// --- REMOVED STATIC FILE SERVING FOR FRONTEND ---
+// These lines are removed because Blogger will now serve your index.html.
+// app.use(express.static('public'));
+// app.get('/', (req, res) => {
+//   res.sendFile('index.html', { root: 'public' });
+// });
 
 // Health check endpoint (useful for Render to know your app is alive)
 app.get('/health', (req, res) => {
@@ -463,7 +465,7 @@ app.post('/api/analyze-url', async (req, res) => {
       const socialLinks = Array.from(doc.querySelectorAll('a')).filter(link => {
         const href = link.href.toLowerCase();
         // Updated platform checks, removed a problematic YouTube pattern
-        return ['facebook.com', 'twitter.com', 'instagram.com', 'linkedin.com', 'youtube.com']
+        return ['facebook.com', 'twitter.com', 'instagram.com', 'linkedin.com']
           .some(platform => href.includes(platform));
       });
       
@@ -584,7 +586,8 @@ app.post('/api/analyze-url', async (req, res) => {
 });
 
 // Start the server
-app.listen(PORT, '0.0.0.0', () => {
+// Listen on '0.0.0.0' for Render deployments
+app.listen(PORT, '0.0.0.0', () => { 
   console.log(`✅ AdSense Readiness Analyzer running on http://0.0.0.0:${PORT}`);
   console.log(`📊 Enhanced with ${15} automated checks + manual guidance`);
 });
