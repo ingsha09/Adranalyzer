@@ -4,9 +4,22 @@ import express from 'express';
 import fetch from 'node-fetch'; // Assumes you're using node-fetch for fetch, if not, adjust
 import { JSDOM } from 'jsdom';
 import cors from 'cors'; // Import the cors module
+import OpenAI from 'openai'; // Import the OpenAI SDK
+
+// Load environment variables if using .env for local development
+// For Render, these are automatically available from environment variables
+// If you're running locally with a .env file, uncomment the line below:
+// import dotenv from 'dotenv';
+// dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+// Initialize the OpenAI client for DeepSeek AI
+const openai = new OpenAI({
+  baseURL: 'https://api.deepseek.com/v1', // DeepSeek's base URL for v1 API
+  apiKey: process.env.DEEPSEEK_API_KEY // Securely access API key from environment variables
+});
 
 // Define your allowed origins for CORS
 const allowedOrigins = [
@@ -79,12 +92,12 @@ async function fetchWithRedirects(url, options = {}, maxRedirects = 5) {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000); // 30-second timeout
 
-      response = await fetch(finalUrl, { 
-        ...defaultOptions, 
+      response = await fetch(finalUrl, {
+        ...defaultOptions,
         redirect: 'manual', // Manually handle redirects
         signal: controller.signal // Apply abort signal for timeout
       });
-      
+
       clearTimeout(timeoutId); // Clear timeout if request completes before timeout
 
       // Handle redirects (3xx status codes)
@@ -103,7 +116,7 @@ async function fetchWithRedirects(url, options = {}, maxRedirects = 5) {
       throw error; // Re-throw other errors
     }
   }
-  
+
   // After handling redirects, make the final request to the resolved URL
   return fetch(finalUrl, defaultOptions);
 }
@@ -113,7 +126,7 @@ async function fetchWithRedirects(url, options = {}, maxRedirects = 5) {
 // Main API endpoint for URL analysis
 app.post('/api/analyze-url', async (req, res) => {
   const { url: initialUrl } = req.body;
-  
+
   if (!initialUrl) {
     return res.status(400).json({ error: 'URL is required.' });
   }
@@ -135,14 +148,15 @@ app.post('/api/analyze-url', async (req, res) => {
   let doc;
   let finalResolvedUrl;
   let responseTime = Date.now(); // Start timer for response time
+  let recommendations = []; // Initialize recommendations array
 
   try {
     let htmlResponse;
-    
+
     try {
       htmlResponse = await fetchWithRedirects(targetUrl);
       responseTime = Date.now() - responseTime; // Calculate response time
-      
+
       // If initial HTTPS fails, try HTTP (less secure, but sometimes necessary)
       if (!htmlResponse.ok) {
         if (targetUrl.startsWith('https://')) {
@@ -151,33 +165,33 @@ app.post('/api/analyze-url', async (req, res) => {
           htmlResponse = await fetchWithRedirects(targetUrl);
         }
       }
-      
+
       if (!htmlResponse.ok) {
         throw new Error(`Server responded with status ${htmlResponse.status}: ${htmlResponse.statusText}`);
       }
     } catch (error) {
       console.error('Fetch error during initial access:', error);
-      return res.status(500).json({ 
-        error: `Failed to access website: ${error.message}. Please check if the URL is correct and the website is accessible.` 
+      return res.status(500).json({
+        error: `Failed to access website: ${error.message}. Please check if the URL is correct and the website is accessible.`
       });
     }
 
     finalResolvedUrl = htmlResponse.url; // Get the final URL after redirects
     const contentType = htmlResponse.headers.get('content-type') || '';
-    
+
     // Check if the content type is HTML
     if (!contentType.includes('text/html')) {
-      return res.status(400).json({ 
-        error: 'The URL does not point to an HTML webpage. Please provide a valid website URL.' 
+      return res.status(400).json({
+        error: 'The URL does not point to an HTML webpage. Please provide a valid website URL.'
       });
     }
 
     const html = await htmlResponse.text(); // Get the HTML content
-    
+
     // Basic check for empty or minimal content
     if (!html || html.length < 100) {
-      return res.status(400).json({ 
-        error: 'Website returned empty or minimal content. Please check if the URL is correct.' 
+      return res.status(400).json({
+        error: 'Website returned empty or minimal content. Please check if the URL is correct.'
       });
     }
 
@@ -186,10 +200,65 @@ app.post('/api/analyze-url', async (req, res) => {
       const dom = new JSDOM(html);
       doc = dom.window.document;
     } catch (error) {
-      return res.status(500).json({ 
-        error: 'Failed to parse website HTML. The website may have malformed content.' 
+      return res.status(500).json({
+        error: 'Failed to parse website HTML. The website may have malformed content.'
       });
     }
+
+    // --- DEEPSEEK AI INTEGRATION START ---
+    let aiFeedback = {};
+    // Limit content length for API to avoid hitting token limits and for cost efficiency
+    // DeepSeek-chat model has 64K context window, but keeping it concise for efficiency.
+    const contentForAI = doc.body.textContent.slice(0, 15000);
+    const pageTitle = doc.querySelector('title')?.textContent?.trim();
+    const metaDescription = doc.querySelector('meta[name="description"]')?.content?.trim();
+
+    try {
+      const deepseekCompletion = await openai.chat.completions.create({
+        model: "deepseek-chat", // Using the general chat model for analysis
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an expert AI assistant specializing in Google AdSense policy and website quality analysis. Your goal is to provide concise, actionable feedback for AdSense approval based on the provided website content, focusing on content quality, originality, policy compliance, and user experience readiness. Provide specific, constructive suggestions.'
+          },
+          {
+            role: 'user',
+            content: `Analyze the following website content for Google AdSense readiness.
+
+              Page Title: "${pageTitle || 'Not available'}"
+              Meta Description: "${metaDescription || 'Not available'}"
+
+              Content Excerpt:
+              ${contentForAI}
+
+              Please provide your analysis and recommendations in a structured JSON format with the following keys:
+              - "content_quality_review": A brief assessment of content originality, depth, and value.
+              - "policy_compliance_concerns": Any potential AdSense policy violations (e.g., restricted content, low value, spam).
+              - "readability_usability_suggestions": Recommendations for improving text readability and overall user experience.
+              - "overall_ad_readiness_summary": A concise summary of the site's AdSense readiness and top priorities.
+              `
+          }
+        ],
+        temperature: 0.7, // Adjust for creativity (higher) or consistency (lower)
+        max_tokens: 1200, // Max tokens for AI's response
+        response_format: { type: "json_object" } // Request JSON output explicitly
+      });
+
+      // Parse the AI's response
+      const aiRawContent = deepseekCompletion.choices[0].message.content;
+      try {
+        aiFeedback = JSON.parse(aiRawContent);
+      } catch (jsonParseError) {
+        console.error('Failed to parse AI JSON response:', jsonParseError, 'Raw AI content:', aiRawContent);
+        aiFeedback.error = `AI analysis returned malformed JSON: ${aiRawContent.slice(0, 200)}...`;
+      }
+
+    } catch (aiError) {
+      console.error('Error calling DeepSeek API:', aiError);
+      aiFeedback.error = `Error during AI analysis: ${aiError.message}`;
+    }
+    // --- DEEPSEEK AI INTEGRATION END ---
+
 
     // --- Start of AdSense-specific checks and scoring logic ---
     const CAT_AUTO = 'Automated Technical Checks';
@@ -205,12 +274,12 @@ app.post('/api/analyze-url', async (req, res) => {
         if (result.status === 'pass') score += weight;
         else if (result.status === 'warn') score += weight / 2;
       } catch (error) {
-        checks.push({ 
-          name, 
-          category, 
+        checks.push({
+          name,
+          category,
           weight,
-          status: 'fail', 
-          message: `Check failed: ${error.message}` 
+          status: 'fail',
+          message: `Check failed: ${error.message}`
         });
       }
     };
@@ -278,40 +347,40 @@ app.post('/api/analyze-url', async (req, res) => {
         const origin = new URL(finalResolvedUrl).origin;
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 8000); // 8-second timeout for robots.txt
-        
-        const robotsRes = await fetch(`${origin}/robots.txt`, { 
+
+        const robotsRes = await fetch(`${origin}/robots.txt`, {
           signal: controller.signal,
           headers: { 'User-Agent': 'AdSense-Analyzer-Bot/1.0' } // Custom User-Agent
         });
-        
+
         clearTimeout(timeoutId);
-        
+
         if (!robotsRes.ok) {
           // 404 or other non-OK status for robots.txt
           return { status: 'warn', message: 'robots.txt not found. Consider adding one for better SEO.' };
         }
-        
+
         const text = await robotsRes.text();
-        
+
         // Check for common blocking patterns
         const blockingPatterns = [
           /User-agent:\s*\*\s*Disallow:\s*\/$/im,
           /User-agent:\s*Googlebot\s*Disallow:\s*\/$/im,
           /User-agent:\s*AdsBot-Google\s*Disallow:\s*\/$/im
         ];
-        
+
         const isBlocked = blockingPatterns.some(pattern => pattern.test(text));
-        
+
         if (isBlocked) {
           return { status: 'fail', message: 'robots.txt blocks search engine crawlers - this will prevent AdSense approval.' };
         }
-        
+
         // Check for sitemap reference
         const hasSitemap = /sitemap:/i.test(text);
         if (hasSitemap) {
           return { status: 'pass', message: 'robots.txt configured correctly with sitemap reference.' };
         }
-        
+
         return { status: 'pass', message: 'robots.txt allows crawling but consider adding sitemap reference.' };
       } catch (e) {
         // Handle network errors or timeouts for robots.txt fetch
@@ -328,7 +397,7 @@ app.post('/api/analyze-url', async (req, res) => {
     runCheck('Navigation Structure', CAT_STRUCT_ACC, 10, () => {
       const nav = doc.querySelector('nav, header nav, .nav, .navigation, .menu');
       const navLinks = nav ? nav.querySelectorAll('a') : doc.querySelectorAll('header a, .menu a');
-      
+
       if (navLinks.length >= 5) {
         return { status: 'pass', message: `Clear navigation with ${navLinks.length} links found.` };
       } else if (navLinks.length >= 3) {
@@ -350,7 +419,7 @@ app.post('/api/analyze-url', async (req, res) => {
 
     runCheck('Terms of Service/Use Page', CAT_STRUCT_ACC, 8, () => {
       const termsLink = findLink(['terms', 'service', 'use', 'tos', 'terms-of-service']);
-      return termsLink 
+      return termsLink
         ? { status: 'pass', message: 'Terms of Service page found.' }
         : { status: 'warn', message: 'Terms of Service page recommended for trust signals.' };
     });
@@ -358,7 +427,7 @@ app.post('/api/analyze-url', async (req, res) => {
     runCheck('About Us & Contact Information', CAT_STRUCT_ACC, 12, () => {
       const hasAbout = findLink(['about', 'about-us']);
       const hasContact = findLink(['contact', 'contact-us']);
-      
+
       if (hasAbout && hasContact) {
         return { status: 'pass', message: 'Both About and Contact pages found.' };
       } else if (hasAbout || hasContact) {
@@ -371,7 +440,7 @@ app.post('/api/analyze-url', async (req, res) => {
       const viewport = doc.querySelector('meta[name="viewport"]');
       const hasResponsiveCss = Array.from(doc.querySelectorAll('style, link[rel="stylesheet"]'))
         .some(el => (el.textContent || el.href || '').includes('media'));
-      
+
       if (viewport && viewport.content.includes('width=device-width')) {
         if (hasResponsiveCss) {
           return { status: 'pass', message: 'Mobile-optimized with viewport tag and responsive CSS.' };
@@ -385,7 +454,7 @@ app.post('/api/analyze-url', async (req, res) => {
     runCheck('Content Volume', CAT_CONTENT, 20, () => {
       const textContent = doc.body.textContent || '';
       const wordCount = textContent.split(/\s+/).filter(word => word.length > 2).length;
-      
+
       if (wordCount > 1500) {
         return { status: 'pass', message: `Good content volume (~${wordCount} words).` };
       } else if (wordCount > 800) {
@@ -399,7 +468,7 @@ app.post('/api/analyze-url', async (req, res) => {
     runCheck('Heading Structure (SEO)', CAT_PERFORMANCE, 5, () => {
       const h1s = doc.querySelectorAll('h1');
       const headings = doc.querySelectorAll('h1, h2, h3, h4, h5, h6');
-      
+
       if (h1s.length === 1 && headings.length >= 3) {
         return { status: 'pass', message: `Good heading structure: 1 H1, ${headings.length} total headings.` };
       } else if (h1s.length === 1) {
@@ -413,11 +482,11 @@ app.post('/api/analyze-url', async (req, res) => {
     runCheck('Image Optimization', CAT_PERFORMANCE, 4, () => {
       const images = doc.querySelectorAll('img');
       const imagesWithAlt = Array.from(images).filter(img => img.alt && img.alt.trim());
-      
+
       if (images.length === 0) {
         return { status: 'warn', message: 'No images found. Visual content improves user engagement.' };
       }
-      
+
       const altPercentage = (imagesWithAlt.length / images.length) * 100;
       if (altPercentage >= 80) {
         return { status: 'pass', message: `Good image accessibility: ${imagesWithAlt.length}/${images.length} images have alt text.` };
@@ -429,7 +498,7 @@ app.post('/api/analyze-url', async (req, res) => {
 
     runCheck('Language Declaration', CAT_STRUCT_ACC, 3, () => {
       const lang = doc.documentElement.getAttribute('lang');
-      return lang 
+      return lang
         ? { status: 'pass', message: `Language declared as "${lang}".` }
         : { status: 'warn', message: 'No language declaration. Add lang attribute to <html> tag.' };
     });
@@ -454,7 +523,7 @@ app.post('/api/analyze-url', async (req, res) => {
       const text = doc.body.textContent.toLowerCase();
       const errorIndicators = ['404', 'page not found', 'error', 'not found', 'does not exist'];
       const hasError = errorIndicators.some(indicator => text.includes(indicator));
-      
+
       if (hasError) {
         return { status: 'fail', message: 'Potential error page or broken content detected.' };
       }
@@ -468,7 +537,7 @@ app.post('/api/analyze-url', async (req, res) => {
         return ['facebook.com', 'twitter.com', 'instagram.com', 'linkedin.com']
           .some(platform => href.includes(platform));
       });
-      
+
       if (socialLinks.length >= 2) {
         return { status: 'pass', message: `Social media links found (${socialLinks.length}). Good for trust signals.` };
       } else if (socialLinks.length === 1) {
@@ -478,50 +547,50 @@ app.post('/api/analyze-url', async (req, res) => {
     });
 
     // Manual checks - these are just for display, don't affect automated score
-    checks.push({ 
-      name: 'Content Originality & Quality', 
-      category: CAT_CONTENT, 
-      status: 'manual', 
-      message: 'Ensure all content is original, well-written, and provides value to users. No copied content allowed.' 
+    checks.push({
+      name: 'Content Originality & Quality',
+      category: CAT_CONTENT,
+      status: 'manual',
+      message: 'Ensure all content is original, well-written, and provides value to users. No copied content allowed.'
     });
-    
-    checks.push({ 
-      name: 'Content Policy Compliance', 
-      category: CAT_CONTENT, 
-      status: 'manual', 
-      message: 'Verify content complies with AdSense policies: no adult content, violence, illegal activities, etc.' 
+
+    checks.push({
+      name: 'Content Policy Compliance',
+      category: CAT_CONTENT,
+      status: 'manual',
+      message: 'Verify content complies with AdSense policies: no adult content, violence, illegal activities, etc.'
     });
-    
-    checks.push({ 
-      name: 'User Experience & Site Design', 
-      category: CAT_CONTENT, 
-      status: 'manual', 
-      message: 'Ensure professional design, easy navigation, fast loading, and good user experience.' 
+
+    checks.push({
+      name: 'User Experience & Site Design',
+      category: CAT_CONTENT,
+      status: 'manual',
+      message: 'Ensure professional design, easy navigation, fast loading, and good user experience.'
     });
 
     // Calculate total possible weight from automated checks only
     const automatedChecks = checks.filter(check => check.status !== 'manual');
     const totalPossibleWeight = automatedChecks.reduce((sum, check) => sum + check.weight, 0);
-    
+
     // Calculate percentage score (0-100)
     let finalScore = totalPossibleWeight > 0 ? Math.round((score / totalPossibleWeight) * 100) : 0;
     let penalties = [];
-    
+
     // Critical failures that severely impact AdSense approval
-    const criticalChecks = checks.filter(check => 
-      check.status === 'fail' && 
-      (check.name.includes('Privacy Policy') || 
-       check.name.includes('HTTPS') || 
+    const criticalChecks = checks.filter(check =>
+      check.status === 'fail' &&
+      (check.name.includes('Privacy Policy') ||
+       check.name.includes('HTTPS') ||
        check.name.includes('Content Volume') ||
        check.name.includes('robots.txt'))
     );
-    
+
     if (criticalChecks.length > 0) {
       const penalty = criticalChecks.length * 15; // Example penalty
       finalScore = Math.max(0, finalScore - penalty);
       penalties.push(`Critical issues detected: -${penalty}%`);
     }
-    
+
     // Additional penalty for sites with multiple failures
     const failedChecks = checks.filter(check => check.status === 'fail').length;
     if (failedChecks > 5) {
@@ -529,15 +598,15 @@ app.post('/api/analyze-url', async (req, res) => {
       finalScore = Math.max(0, finalScore - penalty);
       penalties.push(`Multiple failures: -${penalty}%`);
     }
-    
+
     // Cap score at 65% if any critical requirements are missing (AdSense is strict)
     if (criticalChecks.length > 0) {
       finalScore = Math.min(finalScore, 65);
     }
-    
+
     // Ensure score never exceeds 100
     finalScore = Math.min(finalScore, 100);
-    
+
     // Interpret the final score
     let scoreInterpretation;
     if (finalScore >= 80) {
@@ -547,16 +616,16 @@ app.post('/api/analyze-url', async (req, res) => {
     } else {
       scoreInterpretation = "Significant technical issues detected. Your site likely needs substantial improvements before AdSense consideration.";
     }
-    
-    // Recommendations based on score
-    const recommendations = finalScore < 60 ? [
+
+    // Recommendations based on score (original recommendations are preserved here)
+    const initialRecommendations = finalScore < 60 ? [
       'Fix ALL critical issues immediately (HTTPS, Privacy Policy, Content Volume, robots.txt)',
       'Add substantial, original, high-quality content (minimum 1500+ words per page on key pages)',
       'Ensure complete site structure with all required legal and informational pages (About Us, Contact Us, Privacy Policy, Terms of Service)',
       'AdSense approval often requires months of consistent, valuable content creation and site development.'
     ] : finalScore < 80 ? [
       'Address any remaining technical issues identified.',
-      'Focus heavily on content quality, originality, and providing unique value to users.', 
+      'Focus heavily on content quality, originality, and providing unique value to users.',
       'Ensure full compliance with all AdSense content policies (no prohibited content).',
       'Build substantial site authority and user engagement before applying.'
     ] : [
@@ -566,19 +635,51 @@ app.post('/api/analyze-url', async (req, res) => {
       'User experience, site design, and traffic volume are also crucial factors that AdSense considers.'
     ];
 
-    res.json({ 
-      score: finalScore, 
-      checks, 
+    // Combine original recommendations with AI-generated ones
+    recommendations.push(...initialRecommendations);
+
+    // Integrate AI feedback into the final response (as checks or specific recommendations)
+    if (aiFeedback.content_quality_review) {
+        checks.push({
+            name: 'AI Content Quality Review',
+            category: CAT_CONTENT,
+            status: aiFeedback.policy_compliance_concerns ? 'fail' : 'manual', // If AI finds policy concerns, flag as fail/manual
+            message: `**AI Feedback:** ${aiFeedback.content_quality_review}`
+        });
+    }
+    if (aiFeedback.policy_compliance_concerns) {
+         checks.push({
+            name: 'AI Policy Compliance Check',
+            category: 'Policies',
+            status: 'fail', // AI-identified policy concerns should be a strong warning
+            message: `**AI Identified Policy Concerns:** ${aiFeedback.policy_compliance_concerns}`
+        });
+    }
+    if (aiFeedback.readability_usability_suggestions) {
+        recommendations.push(`**AI Readability & Usability:** ${aiFeedback.readability_usability_suggestions}`);
+    }
+    if (aiFeedback.overall_ad_readiness_summary) {
+        recommendations.push(`**AI Overall Summary:** ${aiFeedback.overall_ad_readiness_summary}`);
+    }
+    if (aiFeedback.error) {
+        recommendations.push(`**AI Analysis Error:** ${aiFeedback.error}`);
+    }
+
+
+    res.json({
+      score: finalScore,
+      checks,
       finalResolvedUrl,
       analysisTime: responseTime, // Use the calculated response time
       penalties,
       scoreInterpretation,
-      recommendations
+      recommendations, // This now includes AI recommendations
+      aiAnalysis: aiFeedback // Send the raw AI feedback to frontend for more detailed display
     });
 
   } catch (error) {
     console.error("Analysis error in /api/analyze-url:", error); // Specific logging
-    res.status(500).json({ 
+    res.status(500).json({
       error: `Analysis failed: ${error.message}`,
       details: 'Please check that the website is accessible and contains valid HTML content. The server might also be too slow or blocking access.'
     });
@@ -587,7 +688,8 @@ app.post('/api/analyze-url', async (req, res) => {
 
 // Start the server
 // Listen on '0.0.0.0' for Render deployments
-app.listen(PORT, '0.0.0.0', () => { 
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ AdSense Readiness Analyzer running on http://0.0.0.0:${PORT}`);
-  console.log(`📊 Enhanced with ${15} automated checks + manual guidance`);
+  // Updated message to reflect AI integration
+  console.log(`📊 Enhanced with automated checks, manual guidance, and DeepSeek AI analysis.`);
 });
