@@ -16,6 +16,6 @@
     "express": "^5.1.0",
     "jsdom": "^26.1.0",
     "node-fetch": "^3.3.2",
-    "openai": "^4.x.x"  // <--- ADDED THIS LINE
+    "openai": "^4.x.x"
   }
 }
