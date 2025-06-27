@@ -1,4 +1,3 @@
-
 import express from 'express';
 import fetch from 'node-fetch';
 import { JSDOM } from 'jsdom';
@@ -61,14 +60,14 @@ async function fetchWithRedirects(url, options = {}, maxRedirects = 5) {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-      response = await fetch(finalUrl, { 
-        ...defaultOptions, 
-        redirect: 'manual', 
-        signal: controller.signal 
+      response = await fetch(finalUrl, {
+        ...defaultOptions,
+        redirect: 'manual',
+        signal: controller.signal
       });
-      
+
       clearTimeout(timeoutId);
-      
+
       if (response.status >= 300 && response.status < 400 && response.headers.has('location')) {
         const location = response.headers.get('location');
         finalUrl = new URL(location, finalUrl).href;
@@ -84,7 +83,7 @@ async function fetchWithRedirects(url, options = {}, maxRedirects = 5) {
       throw error;
     }
   }
-  
+
   return fetch(finalUrl, defaultOptions);
 }
 
@@ -102,7 +101,7 @@ app.get('/health', (req, res) => {
 
 app.post('/api/analyze-url', async (req, res) => {
   const { url: initialUrl } = req.body;
-  
+
   if (!initialUrl) {
     return res.status(400).json({ error: 'URL is required.' });
   }
@@ -127,11 +126,11 @@ app.post('/api/analyze-url', async (req, res) => {
 
   try {
     let htmlResponse;
-    
+
     try {
       htmlResponse = await fetchWithRedirects(targetUrl);
       responseTime = Date.now() - responseTime;
-      
+
       if (!htmlResponse.ok) {
         if (targetUrl.startsWith('https://')) {
           console.log('HTTPS failed, trying HTTP...');
@@ -139,31 +138,31 @@ app.post('/api/analyze-url', async (req, res) => {
           htmlResponse = await fetchWithRedirects(targetUrl);
         }
       }
-      
+
       if (!htmlResponse.ok) {
         throw new Error(`Server responded with status ${htmlResponse.status}: ${htmlResponse.statusText}`);
       }
     } catch (error) {
       console.error('Fetch error:', error);
-      return res.status(500).json({ 
-        error: `Failed to access website: ${error.message}. Please check if the URL is correct and the website is accessible.` 
+      return res.status(500).json({
+        error: `Failed to access website: ${error.message}. Please check if the URL is correct and the website is accessible.`
       });
     }
 
     finalResolvedUrl = htmlResponse.url;
     const contentType = htmlResponse.headers.get('content-type') || '';
-    
+
     if (!contentType.includes('text/html')) {
-      return res.status(400).json({ 
-        error: 'The URL does not point to an HTML webpage. Please provide a valid website URL.' 
+      return res.status(400).json({
+        error: 'The URL does not point to an HTML webpage. Please provide a valid website URL.'
       });
     }
 
     const html = await htmlResponse.text();
-    
+
     if (!html || html.length < 100) {
-      return res.status(400).json({ 
-        error: 'Website returned empty or minimal content. Please check if the URL is correct.' 
+      return res.status(400).json({
+        error: 'Website returned empty or minimal content. Please check if the URL is correct.'
       });
     }
 
@@ -171,8 +170,8 @@ app.post('/api/analyze-url', async (req, res) => {
       const dom = new JSDOM(html);
       doc = dom.window.document;
     } catch (error) {
-      return res.status(500).json({ 
-        error: 'Failed to parse website HTML. The website may have malformed content.' 
+      return res.status(500).json({
+        error: 'Failed to parse website HTML. The website may have malformed content.'
       });
     }
 
@@ -188,12 +187,12 @@ app.post('/api/analyze-url', async (req, res) => {
         if (result.status === 'pass') score += weight;
         else if (result.status === 'warn') score += weight / 2;
       } catch (error) {
-        checks.push({ 
-          name, 
-          category, 
+        checks.push({
+          name,
+          category,
           weight,
-          status: 'fail', 
-          message: `Check failed: ${error.message}` 
+          status: 'fail',
+          message: `Check failed: ${error.message}`
         });
       }
     };
@@ -262,39 +261,39 @@ app.post('/api/analyze-url', async (req, res) => {
         const origin = new URL(finalResolvedUrl).origin;
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 8000);
-        
-        const robotsRes = await fetch(`${origin}/robots.txt`, { 
+
+        const robotsRes = await fetch(`${origin}/robots.txt`, {
           signal: controller.signal,
           headers: { 'User-Agent': 'AdSense-Analyzer-Bot/1.0' }
         });
-        
+
         clearTimeout(timeoutId);
-        
+
         if (!robotsRes.ok) {
           return { status: 'warn', message: 'robots.txt not found. Consider adding one for better SEO.' };
         }
-        
+
         const text = await robotsRes.text();
-        
+
         // Check for blocking patterns
         const blockingPatterns = [
           /User-agent:\s*\*\s*Disallow:\s*\/$/im,
           /User-agent:\s*Googlebot\s*Disallow:\s*\/$/im,
           /User-agent:\s*AdsBot-Google\s*Disallow:\s*\/$/im
         ];
-        
+
         const isBlocked = blockingPatterns.some(pattern => pattern.test(text));
-        
+
         if (isBlocked) {
           return { status: 'fail', message: 'robots.txt blocks search engine crawlers - this will prevent AdSense approval.' };
         }
-        
+
         // Check for sitemap
         const hasSitemap = /sitemap:/i.test(text);
         if (hasSitemap) {
           return { status: 'pass', message: 'robots.txt configured correctly with sitemap reference.' };
         }
-        
+
         return { status: 'pass', message: 'robots.txt allows crawling but consider adding sitemap reference.' };
       } catch (e) {
         return { status: 'warn', message: 'Could not analyze robots.txt due to network error.' };
@@ -309,7 +308,7 @@ app.post('/api/analyze-url', async (req, res) => {
     runCheck('Navigation Structure', CAT_STRUCT_ACC, 10, () => {
       const nav = doc.querySelector('nav, header nav, .nav, .navigation, .menu');
       const navLinks = nav ? nav.querySelectorAll('a') : doc.querySelectorAll('header a, .menu a');
-      
+
       if (navLinks.length >= 5) {
         return { status: 'pass', message: `Clear navigation with ${navLinks.length} links found.` };
       } else if (navLinks.length >= 3) {
@@ -333,7 +332,7 @@ app.post('/api/analyze-url', async (req, res) => {
     // Terms of Service check
     runCheck('Terms of Service/Use Page', CAT_STRUCT_ACC, 8, () => {
       const termsLink = findLink(['terms', 'service', 'use', 'tos', 'terms-of-service']);
-      return termsLink 
+      return termsLink
         ? { status: 'pass', message: 'Terms of Service page found.' }
         : { status: 'warn', message: 'Terms of Service page recommended for trust signals.' };
     });
@@ -342,7 +341,7 @@ app.post('/api/analyze-url', async (req, res) => {
     runCheck('About Us & Contact Information', CAT_STRUCT_ACC, 12, () => {
       const hasAbout = findLink(['about', 'about-us']);
       const hasContact = findLink(['contact', 'contact-us']);
-      
+
       if (hasAbout && hasContact) {
         return { status: 'pass', message: 'Both About and Contact pages found.' };
       } else if (hasAbout || hasContact) {
@@ -356,7 +355,7 @@ app.post('/api/analyze-url', async (req, res) => {
       const viewport = doc.querySelector('meta[name="viewport"]');
       const hasResponsiveCss = Array.from(doc.querySelectorAll('style, link[rel="stylesheet"]'))
         .some(el => (el.textContent || el.href || '').includes('media'));
-      
+
       if (viewport && viewport.content.includes('width=device-width')) {
         if (hasResponsiveCss) {
           return { status: 'pass', message: 'Mobile-optimized with viewport tag and responsive CSS.' };
@@ -370,7 +369,7 @@ app.post('/api/analyze-url', async (req, res) => {
     runCheck('Content Volume', CAT_CONTENT, 20, () => {
       const textContent = doc.body.textContent || '';
       const wordCount = textContent.split(/\s+/).filter(word => word.length > 2).length;
-      
+
       if (wordCount > 1500) {
         return { status: 'pass', message: `Good content volume (~${wordCount} words).` };
       } else if (wordCount > 800) {
@@ -385,7 +384,7 @@ app.post('/api/analyze-url', async (req, res) => {
     runCheck('Heading Structure (SEO)', CAT_PERFORMANCE, 5, () => {
       const h1s = doc.querySelectorAll('h1');
       const headings = doc.querySelectorAll('h1, h2, h3, h4, h5, h6');
-      
+
       if (h1s.length === 1 && headings.length >= 3) {
         return { status: 'pass', message: `Good heading structure: 1 H1, ${headings.length} total headings.` };
       } else if (h1s.length === 1) {
@@ -400,11 +399,11 @@ app.post('/api/analyze-url', async (req, res) => {
     runCheck('Image Optimization', CAT_PERFORMANCE, 4, () => {
       const images = doc.querySelectorAll('img');
       const imagesWithAlt = Array.from(images).filter(img => img.alt && img.alt.trim());
-      
+
       if (images.length === 0) {
         return { status: 'warn', message: 'No images found. Visual content improves user engagement.' };
       }
-      
+
       const altPercentage = (imagesWithAlt.length / images.length) * 100;
       if (altPercentage >= 80) {
         return { status: 'pass', message: `Good image accessibility: ${imagesWithAlt.length}/${images.length} images have alt text.` };
@@ -417,7 +416,7 @@ app.post('/api/analyze-url', async (req, res) => {
     // Language declaration
     runCheck('Language Declaration', CAT_STRUCT_ACC, 3, () => {
       const lang = doc.documentElement.getAttribute('lang');
-      return lang 
+      return lang
         ? { status: 'pass', message: `Language declared as "${lang}".` }
         : { status: 'warn', message: 'No language declaration. Add lang attribute to <html> tag.' };
     });
@@ -445,7 +444,7 @@ app.post('/api/analyze-url', async (req, res) => {
       const text = doc.body.textContent.toLowerCase();
       const errorIndicators = ['404', 'page not found', 'error', 'not found', 'does not exist'];
       const hasError = errorIndicators.some(indicator => text.includes(indicator));
-      
+
       if (hasError) {
         return { status: 'fail', message: 'Potential error page or broken content detected.' };
       }
@@ -459,7 +458,7 @@ app.post('/api/analyze-url', async (req, res) => {
         return ['facebook.com', 'twitter.com', 'instagram.com', 'linkedin.com', 'youtube.com']
           .some(platform => href.includes(platform));
       });
-      
+
       if (socialLinks.length >= 2) {
         return { status: 'pass', message: `Social media links found (${socialLinks.length}). Good for trust signals.` };
       } else if (socialLinks.length === 1) {
@@ -474,7 +473,8 @@ app.post('/api/analyze-url', async (req, res) => {
       const hasAnalytics = scripts.some(script => {
         const src = script.src || '';
         const text = script.textContent || '';
-        return src.includes('googletagmanager.com/gtag/js') || text.includes('ga-lite') || text.includes('ga('create',');
+        // Corrected line: Escaped single quote inside the string
+        return src.includes('googletagmanager.com/gtag/js') || text.includes('ga-lite') || text.includes('ga(\'create\',');
       });
       if (hasAnalytics) {
         return { status: 'pass', message: 'Google Analytics script detected. This is a good sign of a well-managed site.' };
@@ -488,24 +488,24 @@ app.post('/api/analyze-url', async (req, res) => {
         const origin = new URL(finalResolvedUrl).origin;
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 8000);
-        
-        const adsTxtRes = await fetch(`${origin}/ads.txt`, { 
+
+        const adsTxtRes = await fetch(`${origin}/ads.txt`, {
           signal: controller.signal,
           headers: { 'User-Agent': 'AdSense-Analyzer-Bot/1.0' }
         });
-        
+
         clearTimeout(timeoutId);
-        
+
         if (!adsTxtRes.ok) {
           return { status: 'warn', message: 'ads.txt file not found. This is recommended for all publishers.' };
         }
-        
+
         const text = await adsTxtRes.text();
-        
+
         if (text.includes('google.com, pub-')) {
           return { status: 'pass', message: 'ads.txt file found and seems to contain a Google publisher ID.' };
         }
-        
+
         return { status: 'warn', message: 'ads.txt file found, but it does not appear to contain a Google publisher ID.' };
       } catch (e) {
         return { status: 'warn', message: 'Could not analyze ads.txt due to a network error.' };
@@ -543,50 +543,50 @@ app.post('/api/analyze-url', async (req, res) => {
     });
 
     // Manual checks
-    checks.push({ 
-      name: 'Content Originality & Quality', 
-      category: CAT_CONTENT, 
-      status: 'manual', 
-      message: 'Ensure all content is original, well-written, and provides value to users. No copied content allowed.' 
+    checks.push({
+      name: 'Content Originality & Quality',
+      category: CAT_CONTENT,
+      status: 'manual',
+      message: 'Ensure all content is original, well-written, and provides value to users. No copied content allowed.'
     });
-    
-    checks.push({ 
-      name: 'Content Policy Compliance', 
-      category: CAT_CONTENT, 
-      status: 'manual', 
-      message: 'Verify content complies with AdSense policies: no adult content, violence, illegal activities, etc.' 
+
+    checks.push({
+      name: 'Content Policy Compliance',
+      category: CAT_CONTENT,
+      status: 'manual',
+      message: 'Verify content complies with AdSense policies: no adult content, violence, illegal activities, etc.'
     });
-    
-    checks.push({ 
-      name: 'User Experience & Site Design', 
-      category: CAT_CONTENT, 
-      status: 'manual', 
-      message: 'Ensure professional design, easy navigation, fast loading, and good user experience.' 
+
+    checks.push({
+      name: 'User Experience & Site Design',
+      category: CAT_CONTENT,
+      status: 'manual',
+      message: 'Ensure professional design, easy navigation, fast loading, and good user experience.'
     });
 
     // Calculate total possible weight from automated checks only
     const automatedChecks = checks.filter(check => check.status !== 'manual');
     const totalPossibleWeight = automatedChecks.reduce((sum, check) => sum + check.weight, 0);
-    
+
     // Calculate percentage score (0-100)
     let finalScore = totalPossibleWeight > 0 ? Math.round((score / totalPossibleWeight) * 100) : 0;
     let penalties = [];
-    
+
     // Critical failures that severely impact AdSense approval
-    const criticalChecks = checks.filter(check => 
-      check.status === 'fail' && 
-      (check.name.includes('Privacy Policy') || 
-       check.name.includes('HTTPS') || 
+    const criticalChecks = checks.filter(check =>
+      check.status === 'fail' &&
+      (check.name.includes('Privacy Policy') ||
+       check.name.includes('HTTPS') ||
        check.name.includes('Content Volume') ||
        check.name.includes('robots.txt'))
     );
-    
+
     if (criticalChecks.length > 0) {
       const penalty = criticalChecks.length * 15;
       finalScore = Math.max(0, finalScore - penalty);
       penalties.push(`Critical issues detected: -${penalty}%`);
     }
-    
+
     // Additional penalty for sites with multiple failures
     const failedChecks = checks.filter(check => check.status === 'fail').length;
     if (failedChecks > 5) {
@@ -594,15 +594,15 @@ app.post('/api/analyze-url', async (req, res) => {
       finalScore = Math.max(0, finalScore - penalty);
       penalties.push(`Multiple failures: -${penalty}%`);
     }
-    
+
     // Cap score at 65% if any critical requirements are missing
     if (criticalChecks.length > 0) {
       finalScore = Math.min(finalScore, 65);
     }
-    
+
     // Ensure score never exceeds 100
     finalScore = Math.min(finalScore, 100);
-    
+
     // Realistic scoring brackets
     let scoreInterpretation;
     if (finalScore >= 80) {
@@ -612,10 +612,10 @@ app.post('/api/analyze-url', async (req, res) => {
     } else {
       scoreInterpretation = "Significant technical issues detected. Your site likely needs substantial improvements before AdSense consideration.";
     }
-    
-    res.json({ 
-      score: finalScore, 
-      checks, 
+
+    res.json({
+      score: finalScore,
+      checks,
       finalResolvedUrl,
       analysisTime: Date.now() - (Date.now() - responseTime),
       penalties,
@@ -627,7 +627,7 @@ app.post('/api/analyze-url', async (req, res) => {
         'AdSense approval requires months of consistent, valuable content creation'
       ] : finalScore < 80 ? [
         'Address remaining technical issues',
-        'Focus heavily on content quality and originality', 
+        'Focus heavily on content quality and originality',
         'Ensure full compliance with AdSense content policies',
         'Build substantial site authority before applying'
       ] : [
@@ -640,7 +640,7 @@ app.post('/api/analyze-url', async (req, res) => {
 
   } catch (error) {
     console.error("Analysis error:", error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: `Analysis failed: ${error.message}`,
       details: 'Please check that the website is accessible and contains valid HTML content.'
     });
