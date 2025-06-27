@@ -452,7 +452,7 @@ app.post('/api/analyze-url', async (req, res) => {
       return { status: 'pass', message: 'No obvious error indicators found.' };
     });
 
-    """    // Social media presence
+    // Social media presence
     runCheck('Social Media Integration', CAT_CONTENT, 3, () => {
       const socialLinks = Array.from(doc.querySelectorAll('a')).filter(link => {
         const href = link.href.toLowerCase();
@@ -548,7 +548,7 @@ app.post('/api/analyze-url', async (req, res) => {
       category: CAT_CONTENT, 
       status: 'manual', 
       message: 'Ensure all content is original, well-written, and provides value to users. No copied content allowed.' 
-    });""
+    });
     
     checks.push({ 
       name: 'Content Policy Compliance', 
