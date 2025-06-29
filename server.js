@@ -2,7 +2,7 @@ import express from 'express';
 import fetch from 'node-fetch';
 import { JSDOM } from 'jsdom';
 import cors from 'cors';
-import puppeteer from 'puppeteer';
+
 
 const app = express();
 const PORT = process.env.PORT || 5000;
