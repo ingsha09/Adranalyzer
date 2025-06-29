@@ -2,6 +2,7 @@ import express from 'express';
 import fetch from 'node-fetch';
 import { JSDOM } from 'jsdom';
 import cors from 'cors';
+import puppeteer from 'puppeteer';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -644,6 +645,103 @@ app.post('/api/analyze-url', async (req, res) => {
       error: `Analysis failed: ${error.message}`,
       details: 'Please check that the website is accessible and contains valid HTML content.'
     });
+  }
+});
+
+// Function to add watermark to HTML content
+const addWatermark = (htmlContent, logoUrl) => {
+  const watermarkDiv = `
+    <div style="
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      opacity: 0.6;
+      z-index: 9999;
+      pointer-events: none;
+    ">
+      <img src="${logoUrl}" style="width: 150px; height: auto;" alt="Adranalyzer Logo"/>
+    </div>
+  `;
+  return htmlContent.replace('</body>', `${watermarkDiv}</body>`);
+};
+
+// New endpoint for image download
+app.post('/api/download-image', async (req, res) => {
+  const { htmlContent, logoUrl } = req.body;
+
+  if (!htmlContent || !logoUrl) {
+    return res.status(400).json({ error: 'HTML content and logo URL are required.' });
+  }
+
+  let browser;
+  try {
+    browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
+    const page = await browser.newPage();
+
+    // Set content and wait for network idle to ensure all resources are loaded
+    await page.setContent(addWatermark(htmlContent, logoUrl), { waitUntil: 'networkidle0' });
+
+    // Set a reasonable viewport size for the screenshot
+    await page.setViewport({ width: 1200, height: 800 });
+
+    const screenshotBuffer = await page.screenshot({ fullPage: true });
+
+    res.setHeader('Content-Disposition', 'attachment; filename="adranalyzer-report.png"');
+    res.setHeader('Content-Type', 'image/png');
+    res.send(screenshotBuffer);
+  } catch (error) {
+    console.error('Error generating image:', error);
+    res.status(500).json({ error: 'Failed to generate image.' });
+  } finally {
+    if (browser) {
+      await browser.close();
+    }
+  }
+});
+
+// New endpoint for PDF download
+app.post('/api/download-pdf', async (req, res) => {
+  const { htmlContent, logoUrl } = req.body;
+
+  if (!htmlContent || !logoUrl) {
+    return res.status(400).json({ error: 'HTML content and logo URL are required.' });
+  }
+
+  let browser;
+  try {
+    browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
+    const page = await browser.newPage();
+
+    // Set content and wait for network idle to ensure all resources are loaded
+    await page.setContent(addWatermark(htmlContent, logoUrl), { waitUntil: 'networkidle0' });
+
+    const pdfBuffer = await page.pdf({
+      format: 'A4',
+      printBackground: true,
+      margin: {
+        top: '20mm',
+        right: '20mm',
+        bottom: '20mm',
+        left: '20mm'
+      }
+    });
+
+    res.setHeader('Content-Disposition', 'attachment; filename="adranalyzer-report.pdf"');
+    res.setHeader('Content-Type', 'application/pdf');
+    res.send(pdfBuffer);
+  } catch (error) {
+    console.error('Error generating PDF:', error);
+    res.status(500).json({ error: 'Failed to generate PDF.' });
+  } finally {
+    if (browser) {
+      await browser.close();
+    }
   }
 });
 
