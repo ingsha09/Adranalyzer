@@ -648,8 +648,8 @@ app.post('/api/analyze-url', async (req, res) => {
 
 // Function to add watermark to HTML content
 const addWatermark = (htmlContent, logoUrl) => {
-  // Wrap the provided HTML content in a full HTML document structure
-  // and add basic styling for better rendering in Puppeteer.
+  // Wrap the provided HTML content in a full HTML document structure.
+  // All necessary styles are expected to be inlined in htmlContent.
   return `
     <!DOCTYPE html>
     <html lang="en">
@@ -658,13 +658,7 @@ const addWatermark = (htmlContent, logoUrl) => {
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>Adranalyzer Report</title>
       <style>
-        body {
-          font-family: 'system-ui', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-          margin: 0;
-          padding: 20px;
-          background-color: #121212;
-          color: #e0e0e0;
-        }
+        /* Basic watermark styling */
         .watermark {
           position: fixed;
           bottom: 20px;
@@ -677,24 +671,6 @@ const addWatermark = (htmlContent, logoUrl) => {
           width: 150px;
           height: auto;
         }
-        /* Basic styling to make the content readable */
-        .result-card {
-          background-color: #1e1e1e;
-          border-radius: 8px;
-          padding: 15px;
-          margin-bottom: 15px;
-          border: 1px solid #3a3a3a;
-        }
-        h1, h2, h3, h4, h5, h6 {
-          color: #4285F4;
-        }
-        p {
-          line-height: 1.5;
-        }
-        .check-item.pass .icon { color: #34A853; }
-        .check-item.fail .icon { color: #EA4335; }
-        .check-item.warn .icon { color: #FBBC05; }
-        .check-item.manual .icon { color: #4285F4; }
       </style>
     </head>
     <body>
