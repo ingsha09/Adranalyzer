@@ -88,11 +88,7 @@ async function fetchWithRedirects(url, options = {}, maxRedirects = 5) {
   return fetch(finalUrl, defaultOptions);
 }
 
-app.use(express.static('public'));
 
-app.get('/', (req, res) => {
-  res.sendFile('index.html', { root: 'public' });
-});
 
 // Health check endpoint similar to your example
 app.get('/health', (req, res) => {
@@ -650,19 +646,63 @@ app.post('/api/analyze-url', async (req, res) => {
 
 // Function to add watermark to HTML content
 const addWatermark = (htmlContent, logoUrl) => {
-  const watermarkDiv = `
-    <div style="
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      opacity: 0.6;
-      z-index: 9999;
-      pointer-events: none;
-    ">
-      <img src="${logoUrl}" style="width: 150px; height: auto;" alt="Adranalyzer Logo"/>
-    </div>
+  // Wrap the provided HTML content in a full HTML document structure
+  // and add basic styling for better rendering in Puppeteer.
+  return `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Adranalyzer Report</title>
+      <style>
+        body {
+          font-family: 'system-ui', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+          margin: 0;
+          padding: 20px;
+          background-color: #121212;
+          color: #e0e0e0;
+        }
+        .watermark {
+          position: fixed;
+          bottom: 20px;
+          right: 20px;
+          opacity: 0.6;
+          z-index: 9999;
+          pointer-events: none;
+        }
+        .watermark img {
+          width: 150px;
+          height: auto;
+        }
+        /* Basic styling to make the content readable */
+        .result-card {
+          background-color: #1e1e1e;
+          border-radius: 8px;
+          padding: 15px;
+          margin-bottom: 15px;
+          border: 1px solid #3a3a3a;
+        }
+        h1, h2, h3, h4, h5, h6 {
+          color: #4285F4;
+        }
+        p {
+          line-height: 1.5;
+        }
+        .check-item.pass .icon { color: #34A853; }
+        .check-item.fail .icon { color: #EA4335; }
+        .check-item.warn .icon { color: #FBBC05; }
+        .check-item.manual .icon { color: #4285F4; }
+      </style>
+    </head>
+    <body>
+      ${htmlContent}
+      <div class="watermark">
+        <img src="${logoUrl}" alt="Adranalyzer Logo"/>
+      </div>
+    </body>
+    </html>
   `;
-  return htmlContent.replace('</body>', `${watermarkDiv}</body>`);
 };
 
 // New endpoint for image download
