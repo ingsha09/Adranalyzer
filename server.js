@@ -711,8 +711,8 @@ app.post('/api/download-image', async (req, res) => {
     res.setHeader('Content-Type', 'image/png');
     res.send(screenshotBuffer);
   } catch (error) {
-    console.error('Error generating image:', error.message, error.stack);
-    res.status(500).json({ error: `Failed to generate image: ${error.message}` });
+    console.error('Error generating image:', error);
+    res.status(500).json({ error: `Failed to generate image: ${error.message || error}` });
   } finally {
     if (browser) {
       await browser.close();
@@ -754,8 +754,8 @@ app.post('/api/download-pdf', async (req, res) => {
     res.setHeader('Content-Type', 'application/pdf');
     res.send(pdfBuffer);
   } catch (error) {
-    console.error('Error generating PDF:', error.message, error.stack);
-    res.status(500).json({ error: `Failed to generate PDF: ${error.message}` });
+    console.error('Error generating PDF:', error);
+    res.status(500).json({ error: `Failed to generate PDF: ${error.message || error}` });
   } finally {
     if (browser) {
       await browser.close();
