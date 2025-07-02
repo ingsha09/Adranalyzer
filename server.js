@@ -13,7 +13,8 @@ const allowedOrigins = [
   'http://localhost:8080',
   'http://127.0.0.1:5500',
   'https://adranalyzer.blogspot.com',
-  'https://adranalyzer.onrender.com'
+  'https://adranalyzer.onrender.com',
+  'https://ingsha09.github.io/Adranalyzer/'
 ];
 
 app.use(cors({
