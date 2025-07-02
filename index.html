@@ -429,9 +429,8 @@
                     'default': 'bx bx-list-check'
                 };
 
-                // The script now ONLY generates the results, not the support card.
                 resultsContainer.innerHTML = `
-                    <div class="col-lg-4 col-md-12">
+                    <div class="col-lg-4 col-md-12 mb-4">
                         <div class="card" id="score-card">
                             <div class="card-body">
                                 <h2 class="card-title justify-content-center">Readiness Score</h2>
@@ -449,7 +448,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-lg-8 col-md-12">
+                    <div class="col-lg-8 col-md-12 mb-4">
                         <div class="card">
                             <div class="card-body">
                                 <h2 class="card-title">Analysis Details</h2>
@@ -482,7 +481,9 @@
                                 }).join('')}
                             </div>
                         </div>
-                        ${data.recommendations && data.recommendations.length > 0 ? `
+                    </div>
+                    ${data.recommendations && data.recommendations.length > 0 ? `
+                    <div class="col-lg-8 col-md-12 mb-4">
                         <div class="card" id="recommendations-card">
                             <div class="card-body">
                                 <h2 class="card-title"><i class='bx bxs-bulb'></i>Recommendations</h2>
@@ -490,8 +491,8 @@
                                     ${data.recommendations.map(rec => `<li>${rec}</li>`).join('')}
                                 </ul>
                             </div>
-                        </div>` : ''}
-                    </div>
+                        </div>
+                    </div>` : ''}
                 `;
 
                 
