@@ -343,22 +343,22 @@
             resultsContainer.style.display = 'none';
 
             try {
+                console.log('Sending request to:', `https://adranalyzer.onrender.com/api/analyze-url`, 'with URL:', url);
                 const response = await fetch('https://adranalyzer.onrender.com/api/analyze-url', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ url })
                 });
 
+                console.log('Response status:', response.status);
                 const data = await response.json();
+                console.log('Response data:', data);
 
                 if (!response.ok) {
-                    throw new Error(data.error || 'Analysis failed. Please try again.');
+                    throw new Error(data.error || `Analysis failed with status ${response.status}.`);
                 }
 
-                // Show results container
                 resultsContainer.style.display = 'flex';
-
-                // Render results
                 resultsContainer.innerHTML = `
                     <div class="col-lg-4 col-md-12">
                         <div class="card" id="score-card">
@@ -425,7 +425,8 @@
                     </div>
                 `;
             } catch (error) {
-                errorMessage.textContent = error.message;
+                console.error('Error during analysis:', error);
+                errorMessage.textContent = `Error: ${error.message}. Please check the console for details or try again later.`;
                 errorMessage.style.display = 'block';
                 resultsContainer.style.display = 'none';
             } finally {
@@ -435,7 +436,6 @@
             }
         });
 
-        // Clear error message when typing in the input
         urlInput.addEventListener('input', () => {
             errorMessage.style.display = 'none';
         });
