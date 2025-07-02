@@ -79,11 +79,23 @@
             flex: 1;
             padding-top: 4rem;
             padding-bottom: 4rem;
+            overflow-y: auto; /* Add scrollbar if content overflows */
         }
 
         #results-container {
             margin-top: 3rem;
             margin-bottom: 3rem;
+            border: 2px solid red; /* Temporary border for debugging */
+        }
+
+        .support-card {
+            flex-shrink: 0; /* Prevent shrinking */
+            border: 2px solid blue; /* Temporary border for debugging */
+        }
+
+        footer {
+            flex-shrink: 0; /* Prevent shrinking */
+            border: 2px solid green; /* Temporary border for debugging */
         }
 
         header {
@@ -197,21 +209,26 @@
         }
         
         .card-body { padding: 2rem; }
-        .card-body > *:last-child { margin-bottom: 0; }
+        .card-body > * { margin-bottom: 0; }
         .card-body p,
         .card-body h1, .card-body h2, .card-body h3, .card-body h4, .card-body h5, .card-body h6,
         .card-body ul, .card-body ol,
-        .card-body div {
+        .card-body div:not(.score-circle):not(.final-disclaimer):not(.check-item-details) {
             margin-bottom: 1rem; /* Default margin for block elements */
         }
         .card-body .checklist-category h3 {
+            margin-top: 1.5rem;
             margin-bottom: 1rem; /* Specific margin for category headers */
         }
+        .card-body .checklist-category:first-of-type h3 {
+            margin-top: 0;
+        }
         .card-body .check-item {
-            margin-bottom: 0; /* Remove margin for check items, as they have padding */
+            padding-top: 1.25rem;
+            padding-bottom: 1.25rem;
         }
         .card-body .final-disclaimer {
-            margin-bottom: 0; /* Remove margin for final disclaimer */
+            margin-top: 1.5rem;
         }
         #score-summary {
             margin-bottom: 1.5rem; /* Specific margin for score summary */
