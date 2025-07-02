@@ -81,6 +81,11 @@
             padding-bottom: 4rem;
         }
 
+        #results-container {
+            margin-top: 3rem;
+            margin-bottom: 3rem;
+        }
+
         header {
             text-align: center;
             margin-bottom: 4rem;
@@ -193,6 +198,24 @@
         
         .card-body { padding: 2rem; }
         .card-body > *:last-child { margin-bottom: 0; }
+        .card-body p,
+        .card-body h1, .card-body h2, .card-body h3, .card-body h4, .card-body h5, .card-body h6,
+        .card-body ul, .card-body ol,
+        .card-body div {
+            margin-bottom: 1rem; /* Default margin for block elements */
+        }
+        .card-body .checklist-category h3 {
+            margin-bottom: 1rem; /* Specific margin for category headers */
+        }
+        .card-body .check-item {
+            margin-bottom: 0; /* Remove margin for check items, as they have padding */
+        }
+        .card-body .final-disclaimer {
+            margin-bottom: 0; /* Remove margin for final disclaimer */
+        }
+        #score-summary {
+            margin-bottom: 1.5rem; /* Specific margin for score summary */
+        }
         .card-title { font-size: 1.5rem; font-weight: 600; color: #FFFFFF; display: flex; align-items: center; }
         #score-card { }
         .score-circle { position: relative; width: 180px; height: 180px; margin: 1.5rem auto; }
