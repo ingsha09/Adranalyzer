@@ -180,6 +180,7 @@
             border-radius: 1rem;
             height: 100%;
             transition: all var(--transition-speed) ease-in-out;
+            margin-bottom: 2rem;
         }
         
         @media (min-width: 992px) {
@@ -321,7 +322,7 @@
                         <p><b>Your support means the world!</b> If you love my work, consider a donation—it’s greatly appreciated!</p>
                     </div>
                     <div class="razorpay-container">
-                        <form><script src="https://checkout.razorpay.com/v1/payment-button.js" data-payment_button_id="pl_QhuF4FnjPOnIfz" async></script></form>
+                        <div id="razorpay-button-container"></div>
                     </div>
                 </div>
             </div>
@@ -477,6 +478,18 @@
         urlInput.addEventListener('input', () => {
             errorMessage.style.display = 'none';
         });
+
+        // Function to load Razorpay script and render button
+        function loadRazorpayButton() {
+            const script = document.createElement('script');
+            script.src = "https://checkout.razorpay.com/v1/payment-button.js";
+            script.setAttribute('data-payment_button_id', 'pl_QhuF4FnjPOnIfz');
+            script.async = true;
+            document.getElementById('razorpay-button-container').appendChild(script);
+        }
+
+        // Call the function when the page loads
+        loadRazorpayButton();
     </script>
 </body>
 </html>
