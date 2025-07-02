@@ -311,7 +311,22 @@
         <div id="results-container" class="row justify-content-center" style="display: none;">
         </div>
 
+        <!-- Support card is now a permanent part of the page structure -->
+        <div class="row justify-content-center">
+            <div class="col-lg-8 col-md-10">
+                <div class="support-card">
+                    <h2 class="card-title">A Free & Solo Project</h2>
+                    <p>Adranalyzer is a free tool developed and maintained by a solo creator. If you find it useful, your contribution helps cover server costs and fuels the development of new features. Every little bit helps keep the project alive and growing!</p>
+                    <div style="text-align: center;" class="mb-3">
+                        <p><b>Your support means the world!</b> If you love my work, consider a donation—it’s greatly appreciated!</p>
+                    </div>
+                    <div class="razorpay-container">
+                        <form><script src="https://checkout.razorpay.com/v1/payment-button.js" data-payment_button_id="pl_QhuF4FnjPOnIfz" async></script></form>
+                    </div>
+                </div>
+            </div>
         </div>
+    </div>
 
     <footer class="mt-auto">
         <div class="container">
@@ -438,21 +453,7 @@
                     </div>
                 `;
 
-                // Add the support card after the results
-                resultsContainer.innerHTML += `
-                    <div class="col-lg-8 col-md-10 mt-4">
-                        <div class="support-card">
-                            <h2 class="card-title">A Free & Solo Project</h2>
-                            <p>Adranalyzer is a free tool developed and maintained by a solo creator. If you find it useful, your contribution helps cover server costs and fuels the development of new features. Every little bit helps keep the project alive and growing!</p>
-                            <div style="text-align: center;" class="mb-3">
-                                <p><b>Your support means the world!</b> If you love my work, consider a donation—it’s greatly appreciated!</p>
-                            </div>
-                            <div class="razorpay-container">
-                                <form><script src="https://checkout.razorpay.com/v1/payment-button.js" data-payment_button_id="pl_QhuF4FnjPOnIfz" async></script></form>
-                            </div>
-                        </div>
-                    </div>
-                `;
+                
 
                 setTimeout(() => {
                     const scoreFg = resultsContainer.querySelector('.score-fg');
