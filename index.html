@@ -180,7 +180,7 @@
             border-radius: 1rem;
             height: 100%;
             transition: all var(--transition-speed) ease-in-out;
-            margin-bottom: 2rem; /* Consistent bottom margin for all cards */
+            margin-bottom: 2rem;
         }
         
         @media (min-width: 992px) {
@@ -231,15 +231,18 @@
             font-size: 0.9rem;
             color: #f2b8b5;
         }
-        .final-disclaimer strong {
-            color: #fff;
-        }
+        .final-disclaimer strong { color: #fff; }
 
-        .support-card { background-color: transparent; padding: 0; border: none; text-align: center; }
-        .support-card .card-body { padding: 2rem 0; }
+        .support-card { 
+            background-color: var(--surface-color); 
+            padding: 2.5rem; 
+            border-radius: 1rem; 
+            border: 1px solid var(--border-color); 
+            margin-top: 4rem; 
+            text-align: center;
+        }
         .support-card .card-title { font-size: 1.8rem; margin-bottom: 1rem; color: #FFFFFF; display: block; }
         .support-card p { color: var(--muted-text-color); margin-bottom: 1.5rem; max-width: 600px; margin-left: auto; margin-right: auto; }
-        .support-card div[style*="text-align: center"] p { color: var(--text-color); }
         
         .razorpay-container { min-height: 50px; display: flex; justify-content: center; align-items: center; }
 
@@ -248,7 +251,7 @@
         @media (max-width: 991px) { 
             #score-card { 
                 position: static; 
-                margin-bottom: 2rem; /* Explicit margin for mobile view */
+                margin-bottom: 2rem;
             } 
         }
         @media (max-width: 767px) {
@@ -306,6 +309,22 @@
 
         <!-- Results will be injected here -->
         <div id="results-container" class="row justify-content-center" style="display: none;">
+        </div>
+
+        <!-- Support card is now a permanent part of the page structure -->
+        <div class="row justify-content-center">
+            <div class="col-lg-8 col-md-10">
+                <div class="support-card">
+                    <h2 class="card-title">A Free & Solo Project</h2>
+                    <p>Adranalyzer is a free tool developed and maintained by a solo creator. If you find it useful, your contribution helps cover server costs and fuels the development of new features. Every little bit helps keep the project alive and growing!</p>
+                    <div style="text-align: center;" class="mb-3">
+                        <p><b>Your support means the world!</b> If you love my work, consider a donation—it’s greatly appreciated!</p>
+                    </div>
+                    <div class="razorpay-container">
+                        <form><script src="https://checkout.razorpay.com/v1/payment-button.js" data-payment_button_id="pl_QhuF4FnjPOnIfz" async></script></form>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -369,6 +388,7 @@
                     'default': 'bx bx-list-check'
                 };
 
+                // The script now ONLY generates the results, not the support card.
                 resultsContainer.innerHTML = `
                     <div class="col-lg-4 col-md-12">
                         <div class="card" id="score-card">
@@ -430,20 +450,6 @@
                                 </ul>
                             </div>
                         </div>` : ''}
-
-                        <!-- Support Card moved here to be part of the results flow -->
-                        <div class="card support-card">
-                            <div class="card-body">
-                                <h2 class="card-title">A Free & Solo Project</h2>
-                                <p>Adranalyzer is a free tool developed and maintained by a solo creator. If you find it useful, your contribution helps cover server costs and fuels the development of new features. Every little bit helps keep the project alive and growing!</p>
-                                <div style="text-align: center;" class="mb-3">
-                                    <p><b>Your support means the world!</b> If you love my work, consider a donation—it’s greatly appreciated!</p>
-                                </div>
-                                <div class="razorpay-container">
-                                    <form><script src="https://checkout.razorpay.com/v1/payment-button.js" data-payment_button_id="pl_QhuF4FnjPOnIfz" async><\/script></form>
-                                </div>
-                            </div>
-                        </div>
                     </div>
                 `;
 
